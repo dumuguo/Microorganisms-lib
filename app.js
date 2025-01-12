@@ -6,7 +6,7 @@ const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
 
 const app = express();
-const port = 3000;
+const port = 3001;
 
 // 设置模板引擎
 app.set('views', path.join(__dirname, 'views'));
