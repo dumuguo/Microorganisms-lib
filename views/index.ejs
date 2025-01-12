@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>微生物数据库 - 首页</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <h1>微生物数据库管理系统</h1>
+  <div class="container">
+    <h2>导入Excel文件</h2>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <input type="file" name="excelFile" accept=".xlsx,.xls">
+      <button type="submit">上传并导入数据库</button>
+    </form>
+    <div class="nav-links">
+      <a href="/search">搜索数据库</a>
+      <a href="/browse">浏览数据库</a>
+    </div>
+  </div>
+</body>
+</html>

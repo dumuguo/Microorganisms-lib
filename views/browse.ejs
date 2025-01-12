@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>微生物数据库 - 浏览</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <h1>微生物数据库浏览</h1>
+  <div class="container">
+    <form action="/browse" method="get">
+      <label for="start">起始记录号：</label>
+      <input type="number" name="start" id="start" min="1" required>
+      
+      <label for="end">结束记录号：</label>
+      <input type="number" name="end" id="end" min="1" required>
+      
+      <button type="submit">查询</button>
+    </form>
+    
+    <% if (results) { %>
+      <div class="results">
+        <h2>查询结果（记录 <%= start %> 到 <%= end %>）</h2>
+        <div class="table-container">
+          <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>IMAU编号</th>
+              <th>原始编号</th>
+              <th>拉丁文种属名</th>
+              <th>中文种属名</th>
+              <th>分离地</th>
+              <th>分离源</th>
+              <th>分离时间</th>
+              <th>培养温度</th>
+              <th>GenBank序列号</th>
+              <th>培养基代码</th>
+              <th>菌株保藏形式</th>
+              <th>存放位置</th>
+              <th>保藏备份数</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% results.forEach(item => { %>
+              <tr>
+                <td><%= item.id %></td>
+                <td><%= item.imau_id %></td>
+                <td><%= item.original_id %></td>
+                <td><%= item.latin_name %></td>
+                <td><%= item.chinese_name %></td>
+                <td><%= item.isolation_location %></td>
+                <td><%= item.isolation_source %></td>
+                <td><%= item.isolation_year %></td>
+                <td><%= item.culture_temperature %></td>
+                <td><%= item.genbank_id %></td>
+                <td><%= item.medium_code %></td>
+                <td><%= item.preservation_form %></td>
+                <td><%= item.storage_location %></td>
+                <td><%= item.backup_count %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+          </table>
+        </div>
+      </div>
+    <% } %>
+    
+    <div class="nav-links">
+      <a href="/">返回首页</a>
+      <a href="/search">搜索数据库</a>
+    </div>
+  </div>
+</body>
+</html>

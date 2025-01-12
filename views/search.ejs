@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>微生物数据库 - 搜索</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <h1>微生物数据库搜索</h1>
+  <div class="container">
+    <form action="/search" method="get">
+      <input type="text" name="keyword" placeholder="输入搜索关键词">
+      <button type="submit">搜索</button>
+    </form>
+    
+    <% if (results) { %>
+      <div class="results">
+        <h2>搜索结果</h2>
+        <div class="table-container">
+          <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>IMAU编号</th>
+              <th>原始编号</th>
+              <th>拉丁文种属名</th>
+              <th>中文种属名</th>
+              <th>分离地</th>
+              <th>分离源</th>
+              <th>分离时间</th>
+              <th>培养温度</th>
+              <th>GenBank序列号</th>
+              <th>培养基代码</th>
+              <th>菌株保藏形式</th>
+              <th>存放位置</th>
+              <th>保藏备份数</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% results.forEach(item => { %>
+              <tr>
+                <td><%= item.id %></td>
+                <td><%= item.imau_id %></td>
+                <td><%= item.original_id %></td>
+                <td><%= item.latin_name %></td>
+                <td><%= item.chinese_name %></td>
+                <td><%= item.isolation_location %></td>
+                <td><%= item.isolation_source %></td>
+                <td><%= item.isolation_year %></td>
+                <td><%= item.culture_temperature %></td>
+                <td><%= item.genbank_id %></td>
+                <td><%= item.medium_code %></td>
+                <td><%= item.preservation_form %></td>
+                <td><%= item.storage_location %></td>
+                <td><%= item.backup_count %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+          </table>
+        </div>
+      </div>
+    <% } %>
+    
+    <div class="nav-links">
+      <a href="/">返回首页</a>
+      <a href="/browse">浏览数据库</a>
+    </div>
+  </div>
+</body>
+</html>
