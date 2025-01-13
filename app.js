@@ -45,24 +45,26 @@ function initializeDatabase() {
   )`);
 }
 
-// 首页路由 - 上传Excel并导入数据库
+// 首页路由
 app.get('/', (req, res) => {
-  res.render('index');
+  res.render('home');
+});
+
+// 数据上传路由
+app.get('/upload', (req, res) => {
+  res.render('upload');
 });
 
 // 处理文件上传
 app.post('/upload', upload.single('excelFile'), (req, res) => {
   if (!req.file) {
-    return res.status(400).send('请选择要上传的文件');
+    return res.status(400).json({ success: false, message: '请选择要上传的文件' });
   }
 
   try {
     const workbook = xlsx.readFile(req.file.path);
-    console.log('Excel文件Sheet名称:', workbook.SheetNames);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    console.log('Sheet内容:', sheet);
     const data = xlsx.utils.sheet_to_json(sheet);
-    console.log('解析后的JSON数据:', data);
 
     db.serialize(() => {
       const stmt = db.prepare(`
@@ -93,11 +95,11 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
       });
 
       stmt.finalize();
-      res.redirect('/?success=1');
+      res.json({ success: true });
     });
   } catch (err) {
     console.error('文件处理错误:', err);
-    res.status(500).send('文件处理失败');
+    res.status(500).json({ success: false, message: '文件处理失败' });
   }
 });
 
