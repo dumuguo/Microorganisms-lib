@@ -3,10 +3,50 @@ const path = require('path');
 const xlsx = require('xlsx');
 const sqlite3 = require('sqlite3').verbose();
 const multer = require('multer');
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
 const upload = multer({ dest: 'uploads/' });
 
 const app = express();
-const port = 3001;
+const port = 3002;
+
+// 确保body解析中间件最先加载
+app.use((req, res, next) => {
+  console.log('收到请求:', req.method, req.url);
+  console.log('请求头:', req.headers);
+  next();
+});
+
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+// 验证body解析中间件
+app.use((req, res, next) => {
+  console.log('解析后的请求体:', req.body);
+  next();
+});
+
+// Session configuration
+app.use(session({
+  secret: 'your-secret-key',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false } // Set to true if using HTTPS
+}));
+
+// User database connection
+const userDb = new sqlite3.Database('database/users.db');
+
+// Authentication middleware
+const requireAuth = (req, res, next) => {
+  if (!req.session.user) {
+    req.session.user = { username: 'anonymous', role: 'guest' };
+  }
+  next();
+};
+
+// Apply authentication middleware to all routes
+app.use(requireAuth);
 
 // 设置模板引擎
 app.set('views', path.join(__dirname, 'views'));
@@ -45,9 +85,83 @@ function initializeDatabase() {
   )`);
 }
 
+// User routes
+app.get('/login', (req, res) => {
+  res.render('login', { error: req.query.error });
+});
+
+app.post('/login', (req, res) => {
+  console.log('请求体:', req.body);
+  const { username, password } = req.body;
+  
+  if (!username || !password) {
+    console.log('登录失败：用户名或密码为空');
+    console.log('收到的用户名:', username);
+    console.log('收到的密码:', password);
+    return res.redirect('/login?error=1');
+  }
+
+  userDb.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
+    if (err) {
+      console.error('数据库查询错误:', err);
+      return res.redirect('/login?error=2');
+    }
+    
+    if (!user) {
+      console.log('登录失败：用户不存在');
+      return res.redirect('/login?error=3');
+    }
+
+    // Decode base64 password hash before comparison
+    const decodedHash = Buffer.from(user.password, 'base64').toString('utf8');
+    if (!bcrypt.compareSync(password, decodedHash)) {
+      console.log('登录失败：密码不匹配');
+      return res.redirect('/login?error=4');
+    }
+    
+    req.session.user = { username: user.username, role: user.username === 'admin' ? 'admin' : 'user' };
+    console.log('登录成功：', user.username);
+    res.redirect('/');
+  });
+});
+
+app.get('/register', (req, res) => {
+  res.render('register');
+});
+
+app.post('/register', (req, res) => {
+  const { username, password } = req.body;
+  
+  if (!username || !password) {
+    return res.redirect('/register?error=1');
+  }
+
+  userDb.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
+    if (user) {
+      return res.redirect('/register?error=2');
+    }
+    
+    // Encode password hash in base64 before storing
+    const hashedPassword = Buffer.from(bcrypt.hashSync(password, 8)).toString('base64');
+    userDb.run('INSERT INTO users (username, password) VALUES (?, ?)', 
+      [username, hashedPassword], (err) => {
+        if (err) {
+          return res.redirect('/register?error=3');
+        }
+        req.session.user = { username, role: 'user' };
+        res.redirect('/');
+      });
+  });
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/');
+});
+
 // 首页路由
 app.get('/', (req, res) => {
-  res.render('home');
+  res.render('home', { user: req.session.user });
 });
 
 // 数据上传路由
