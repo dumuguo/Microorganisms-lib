@@ -9,39 +9,39 @@
 <body>
   <div class="auth-container">
     <h1>用户注册</h1>
-    <% if (typeof error !== 'undefined') { %>
-      <div class="error">
-        <% if (error === '1') { %>
-          请填写所有字段
-        <% } else if (error === '2') { %>
-          用户名已存在
-        <% } else { %>
-          注册失败，请稍后重试
-        <% } %>
-      </div>
-    <% } %>
-    <% if (typeof error !== 'undefined') { %>
-      <div class="alert alert-danger">
-        <% if (error === '1') { %>
-          请填写用户名和密码
-        <% } else if (error === '2') { %>
-          用户名已存在
-        <% } else if (error === '3') { %>
-          注册失败，请稍后重试
-        <% } %>
-      </div>
-    <% } %>
-    <form action="/register" method="POST">
-      <div class="form-group">
-        <label for="username">用户名:</label>
-        <input type="text" id="username" name="username" required>
-      </div>
-      <div class="form-group">
-        <label for="password">密码:</label>
-        <input type="password" id="password" name="password" required>
-      </div>
-      <button type="submit">注册</button>
-    </form>
+<form action="/register" method="POST">
+  <div class="form-group">
+    <label for="username">用户名</label>
+    <input type="text" class="form-control" id="username" name="username" required>
+  </div>
+  <div class="form-group">
+    <label for="password">密码</label>
+    <input type="password" class="form-control" id="password" name="password" required>
+  </div>
+  <div class="form-group">
+    <label for="confirm_password">确认密码</label>
+    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+  </div>
+  <div class="form-group">
+    <%- captcha %>
+  </div>
+  <% if (typeof error !== 'undefined') { %>
+    <div class="alert alert-danger">
+      <% if (error == 1) { %>
+        用户名和密码不能为空
+      <% } else if (error == 2) { %>
+        数据库查询错误
+      <% } else if (error == 3) { %>
+        用户已存在
+      <% } else if (error == 4) { %>
+        密码不一致
+      <% } else if (error == 5) { %>
+        验证码错误
+      <% } %>
+    </div>
+  <% } %>
+  <button type="submit" class="btn btn-primary">注册</button>
+</form>
     <p>已有账号？ <a href="/login">立即登录</a></p>
   </div>
 </body>

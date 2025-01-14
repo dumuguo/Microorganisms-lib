@@ -60,7 +60,7 @@ nav a:hover {
 
 .main-container {
   max-width: 1200px;
-  margin: 24px auto;
+  margin: 80px auto 24px;
   padding: 0 24px;
 }
 
@@ -177,13 +177,39 @@ th {
   border-radius: 4px;
 }
 
-.error {
-  color: #dc3545;
-  background-color: #f8d7da;
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 15px;
-  border: 1px solid #f5c6cb;
+.error,
+.error-message,
+.alert-danger {
+    color: #dc3545;
+    background-color: #f8d7da;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    border: 1px solid #f5c6cb;
+    display: block !important;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    position: relative;
+    animation: fadeIn 0.5s ease;
+    visibility: visible !important;
+}
+
+.error.hidden,
+.alert-danger.hidden {
+    display: none;
+    visibility: hidden;
+}
+
+.error:not(.hidden),
+.alert-danger:not(.hidden) {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .auth-container p {
@@ -198,4 +224,38 @@ th {
 
 .auth-container a:hover {
   text-decoration: underline;
+}
+
+/* Two column layout */
+.two-column-layout {
+  display: flex;
+  gap: 40px;
+  margin-top: 30px;
+}
+
+.left-column {
+  flex: 1;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.right-column {
+  width: 400px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.right-column .auth-container {
+  margin: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.right-column h2 {
+  margin-bottom: 20px;
+  color: var(--primary-color);
 }

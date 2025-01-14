@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>微生物数据库</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <%- include('partials/header') %>
+  <div class="main-container">
+    <div class="two-column-layout">
+      <div class="left-column">
+        <h1>欢迎使用微生物数据库</h1>
+        <p>这是一个用于管理微生物信息的系统...</p>
+      </div>
+      <div class="right-column">
+        <div class="auth-container">
+          <h2>用户登录</h2>
+          <div class="<%= typeof error !== 'undefined' ? 'error' : 'error hidden' %>">
+            <% if (error === '1') { %>
+              用户名或密码不能为空
+            <% } else if (error === '2') { %>
+              数据库查询错误，请稍后再试
+            <% } else if (error === '3') { %>
+              用户不存在
+            <% } else if (error === '4') { %>
+              密码错误
+            <% } else { %>
+              登录失败，请重试
+            <% } %>
+          </div>
+          <form action="/login" method="POST">
+            <div class="form-group">
+              <label for="username">用户名:</label>
+              <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+              <label for="password">密码:</label>
+              <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">登录</button>
+          </form>
+          <p>还没有账号？ <a href="/register">立即注册</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -9,8 +9,7 @@
 <body>
   <div class="auth-container">
     <h1>用户登录</h1>
-    <% if (typeof error !== 'undefined') { %>
-      <div class="error">
+    <div class="<%= typeof error !== 'undefined' ? 'error' : 'error hidden' %>">
         <% if (error === '1') { %>
           用户名或密码不能为空
         <% } else if (error === '2') { %>
