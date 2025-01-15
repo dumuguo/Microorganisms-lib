@@ -37,8 +37,11 @@
                                 <th>GenBank序列号</th>
                                 <th>培养基代码</th>
                                 <th>菌株保藏形式</th>
-                                <th>存放位置</th>
-                                <th>保藏备份数</th>
+          <th>存放位置</th>
+          <th>保藏备份数</th>
+          <th>图片链接</th>
+          <th>上传用户</th>
+          <th>上传时间</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -58,6 +61,9 @@
                                     <td><%= item.preservation_form %></td>
                                     <td><%= item.storage_location %></td>
                                     <td><%= item.backup_count %></td>
+                                    <td><%= item.image_url %></td>
+                                    <td><%= item.upload_user %></td>
+                                    <td><%= item.upload_time %></td>
                                 </tr>
                             <% }) %>
                         </tbody>

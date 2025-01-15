@@ -16,8 +16,6 @@ const recaptcha = new Recaptcha('6LfZ9rYqAAAAAKNgVv4u8CbtJUbfT5_F1CdoT8-u', '6Lf
 
 // 确保body解析中间件最先加载
 app.use((req, res, next) => {
-  console.log('收到请求:', req.method, req.url);
-  console.log('请求头:', req.headers);
   next();
 });
 
@@ -26,7 +24,6 @@ app.use(express.json());
 
 // 验证body解析中间件
 app.use((req, res, next) => {
-  console.log('解析后的请求体:', req.body);
   next();
 });
 
@@ -81,16 +78,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 // 数据库初始化
 const db = new sqlite3.Database('database/microorganisms.db', (err) => {
   if (err) {
-    console.error('数据库连接失败:', err.message);
+    return;
   } else {
-    console.log('成功连接到SQLite数据库');
     initializeDatabase();
   }
 });
 
 // 初始化数据库表
 function initializeDatabase() {
-  db.run(`CREATE TABLE IF NOT EXISTS microorganisms (
+    db.run(`CREATE TABLE IF NOT EXISTS microorganisms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     imau_id TEXT,
     original_id TEXT,
@@ -104,7 +100,10 @@ function initializeDatabase() {
     genbank_id TEXT,
     preservation_form TEXT,
     storage_location TEXT,
-    backup_count TEXT
+    backup_count TEXT,
+    image_url TEXT,
+    upload_user TEXT,
+    upload_time TEXT
   )`);
 }
 
@@ -114,36 +113,28 @@ app.get('/login', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  console.log('请求体:', req.body);
   const { username, password } = req.body;
   
   if (!username || !password) {
-    console.log('登录失败：用户名或密码为空');
-    console.log('收到的用户名:', username);
-    console.log('收到的密码:', password);
     return res.redirect('/?error=1');
   }
 
   userDb.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
     if (err) {
-      console.error('数据库查询错误:', err);
       return res.redirect('/?error=2');
     }
     
     if (!user) {
-      console.log('登录失败：用户不存在');
       return res.redirect('/?error=3');
     }
 
     // Decode base64 password hash before comparison
     const decodedHash = Buffer.from(user.password, 'base64').toString('utf8');
     if (!bcrypt.compareSync(password, decodedHash)) {
-      console.log('登录失败：密码不匹配');
       return res.redirect('/?error=4');
     }
     
     req.session.user = { username: user.username, role: user.role };
-    console.log('登录成功：', user.username);
     res.redirect('/');
   });
 });
@@ -242,6 +233,8 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
     const workbook = xlsx.readFile(req.file.path);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const data = xlsx.utils.sheet_to_json(sheet);
+    
+    // 添加调试信息
 
     db.serialize(() => {
       const stmt = db.prepare(`
@@ -249,11 +242,16 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
           imau_id, original_id, latin_name, chinese_name,
           isolation_location, isolation_source, isolation_year,
           medium_code, culture_temperature, genbank_id,
-          preservation_form, storage_location, backup_count
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          preservation_form, storage_location, backup_count,
+          image_url, upload_user, upload_time
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       
       data.forEach(row => {
+        // Remove any existing upload_user and upload_time from Excel data
+        delete row['上传用户'];
+        delete row['上传时间'];
+        
         stmt.run(
           row['IMAU编号'] || '',
           row['原始编号'] || '',
@@ -267,15 +265,21 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
           row['GenBank序列号：'] || '',
           row['菌株保藏形式'] || '',
           row['存放位置'] || '',
-          row['保藏备份数'] || ''
+          row['保藏备份数'] || '',
+          row['图片链接'] || '',
+          req.session.user.username, // Always use logged-in user
+          new Date().toISOString() // Always use current timestamp
         );
       });
 
       stmt.finalize();
-      res.json({ success: true, message: '上传成功' });
+      res.json({ 
+        success: true, 
+        message: `上传成功，共上传了${data.length}条记录（一行代表一条记录）`,
+        count: data.length 
+      });
     });
   } catch (err) {
-    console.error('文件处理错误:', err);
     res.status(500).json({ success: false, message: '文件处理失败' });
   }
 });
@@ -298,7 +302,6 @@ app.get('/search', (req, res) => {
       ],
       (err, rows) => {
         if (err) {
-          console.error('搜索错误:', err);
           return res.status(500).send('搜索失败');
         }
         res.render('search', { 
@@ -328,7 +331,6 @@ app.get('/browse', (req, res) => {
     [start, end],
     (err, rows) => {
       if (err) {
-        console.error('查询错误:', err);
         return res.status(500).send('查询失败');
       }
       res.render('browse', { 
@@ -345,7 +347,6 @@ app.get('/browse', (req, res) => {
 app.get('/user-management', requireAdmin, (req, res) => {
   userDb.all('SELECT * FROM users ORDER BY id ASC', (err, users) => {
     if (err) {
-      console.error('获取用户列表失败:', err);
       return res.status(500).send('获取用户列表失败');
     }
     res.render('user_management', {
@@ -397,7 +398,6 @@ app.put('/users/:id/role', requireAdmin, async (req, res) => {
       // Update user role with retry logic
       const updateRole = async (attempt = 1) => {
         try {
-          console.log(`尝试更新用户 ${userId} 角色为 ${role} (尝试 ${attempt})`);
           const updateResult = await runQuery(
             'UPDATE users SET role = ? WHERE id = ?', 
             [role, userId]
@@ -422,7 +422,6 @@ app.put('/users/:id/role', requireAdmin, async (req, res) => {
         } catch (err) {
           if (err.code === 'SQLITE_BUSY' && attempt < maxRetries) {
             const delay = Math.min(1000, retryDelay * Math.pow(2, attempt - 1));
-            console.log(`数据库锁定，重试 ${attempt}，等待 ${delay}ms`);
             await new Promise(resolve => setTimeout(resolve, delay));
             return updateRole(attempt + 1);
           }
@@ -444,7 +443,6 @@ app.put('/users/:id/role', requireAdmin, async (req, res) => {
 
         const clearSessions = async (attempt = 1) => {
           try {
-            console.log(`开始清除用户 ${userId} 的session (尝试 ${attempt})`);
             
             // Get all sessions using the correct method
             const sessions = await new Promise((resolve, reject) => {
@@ -452,8 +450,7 @@ app.put('/users/:id/role', requireAdmin, async (req, res) => {
                 if (err) {
                   if (err.code === 'SQLITE_BUSY' && attempt < maxRetries) {
                     const delay = Math.min(1000, retryDelay * Math.pow(2, attempt - 1));
-                    console.log(`数据库锁定，重试 ${attempt}，等待 ${delay}ms`);
-                    setTimeout(() => clearSessions(attempt + 1), delay);
+                            setTimeout(() => clearSessions(attempt + 1), delay);
                     return;
                   }
                   return reject(err);
@@ -488,7 +485,6 @@ app.put('/users/:id/role', requireAdmin, async (req, res) => {
                     if (err) {
                       if (err.code === 'SQLITE_BUSY' && attempt < maxRetries) {
                         const delay = Math.min(1000, retryDelay * Math.pow(2, attempt - 1));
-                        console.log(`数据库锁定，重试 ${attempt}，等待 ${delay}ms`);
                         setTimeout(() => clearSessions(attempt + 1), delay);
                         return;
                       }
@@ -500,16 +496,13 @@ app.put('/users/:id/role', requireAdmin, async (req, res) => {
               }
             }
 
-            console.log(`成功清除用户 ${userId} 的session`);
           } catch (err) {
-            console.error('清除session失败:', err);
             throw err;
           }
         };
 
         await clearSessions();
         await runQuery('COMMIT');
-        console.log(`成功更新用户 ${userId} 角色为 ${role}`);
         res.json({ 
           success: true,
           message: `角色已成功更新为${role}`
@@ -523,7 +516,6 @@ app.put('/users/:id/role', requireAdmin, async (req, res) => {
       }
     } catch (err) {
       await runQuery('ROLLBACK');
-      console.error('角色更新过程中发生错误:', err);
       res.status(500).json({
         success: false,
         message: '服务器内部错误'
@@ -542,7 +534,6 @@ app.delete('/users/:id', requireAdmin, (req, res) => {
 
   userDb.run('DELETE FROM users WHERE id = ?', [userId], function(err) {
     if (err) {
-      console.error('删除用户失败:', err);
       return res.status(500).json({ success: false, message: '删除用户失败' });
     }
     
@@ -556,5 +547,4 @@ app.delete('/users/:id', requireAdmin, (req, res) => {
 
 // 启动服务器
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
 });

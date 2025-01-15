@@ -13,7 +13,10 @@
             
             fetch('/upload', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
             })
             .then(response => response.json())
             .then(data => {
@@ -23,7 +26,7 @@
                 
                 resultDiv.style.display = 'block';
                 if(data.success) {
-                    successDiv.textContent = data.message || '上传成功！';
+                    successDiv.textContent = (data.message || '上传成功！') + `，本次上传 ${data.count || 0} 条数据`;
                     successDiv.style.display = 'block';
                     errorDiv.style.display = 'none';
                 } else {
@@ -52,9 +55,47 @@
             <% } else { %>
                 <h2>导入Excel文件</h2>
                 <form onsubmit="handleUpload(event)">
-                    <input type="file" name="excelFile" accept=".xlsx,.xls" required>
+                    <input type="file" name="excelFile" id="fileInput" accept=".xlsx,.xls" required>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const fileInput = document.getElementById('fileInput');
+                            if (fileInput) {
+                                fileInput.addEventListener('click', function() {
+                                    console.log('File input clicked');
+                                    clearUploadMessages();
+                                });
+                                fileInput.addEventListener('change', function() {
+                                    console.log('File input changed');
+                                    clearUploadMessages();
+                                });
+                                console.log('Event listeners added successfully');
+                            } else {
+                                console.error('File input element not found');
+                            }
+                        });
+                    </script>
                     <button type="submit">上传并导入数据库</button>
                 </form>
+                <script>
+                    function clearUploadMessages() {
+                        console.log('Clearing upload messages...');
+                        const resultDiv = document.getElementById('uploadResult');
+                        const successDiv = document.getElementById('successMessage');
+                        const errorDiv = document.getElementById('errorMessage');
+                        
+                        if (!resultDiv || !successDiv || !errorDiv) {
+                            console.error('Failed to find message elements');
+                            return;
+                        }
+                        
+                        console.log('Hiding elements and clearing text');
+                        resultDiv.style.display = 'none';
+                        successDiv.style.display = 'none';
+                        errorDiv.style.display = 'none';
+                        successDiv.textContent = '';
+                        errorDiv.textContent = '';
+                    }
+                </script>
                 <div id="uploadResult" class="mt-3" style="display: none;">
                     <div class="alert alert-success" id="successMessage" style="display: none;"></div>
                     <div class="alert alert-danger" id="errorMessage" style="display: none;"></div>
@@ -85,7 +126,7 @@
                 
                 resultDiv.style.display = 'block';
                 if(data.success) {
-                    successDiv.textContent = data.message || '上传成功！';
+                    successDiv.textContent = (data.message || '上传成功！') + `，本次上传 ${data.count || 0} 条数据`;
                     successDiv.style.display = 'block';
                     errorDiv.style.display = 'none';
                 } else {
