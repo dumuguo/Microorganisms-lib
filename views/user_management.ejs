@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微生物数据库 - 用户管理</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <%- include('partials/header') %>
+
+    <main class="main-container">
+        <div class="container user-management">
+            <h1>用户管理</h1>
+            <div id="message" class="message"></div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>用户ID</th>
+                            <th>用户名</th>
+                            <th>邮箱</th>
+                            <th>角色</th>
+                            <th>注册时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% users.forEach(user => { %>
+                            <tr>
+                                <td><%= user.id %></td>
+                                <td><%= user.username %></td>
+                                <td><%= user.email %></td>
+                                <td>
+                                    <select class="role-select" data-user-id="<%= user.id %>" onchange="updateRole(this)">
+                                        <option value="guest" <%= user.role === 'guest' ? 'selected' : '' %>>Guest</option>
+                                        <option value="user" <%= user.role === 'user' ? 'selected' : '' %>>User</option>
+                                        <option value="admin" <%= user.role === 'admin' ? 'selected' : '' %>>Admin</option>
+                                    </select>
+                                </td>
+                                <td><%= new Date(user.created_at).toLocaleDateString() %></td>
+                                <td>
+                                    <button class="btn-delete" onclick="deleteUser('<%= user.id %>')">删除</button>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function editUser(userId) {
+            // TODO: 实现编辑功能
+            alert('编辑用户：' + userId);
+        }
+
+        function updateRole(select) {
+            const userId = select.dataset.userId;
+            const newRole = select.value;
+            
+            // 重置消息状态
+            const message = document.getElementById('message');
+            message.textContent = '';
+            message.className = 'message';
+            message.style.animation = 'none';
+            void message.offsetHeight; // 触发重绘
+            message.style.animation = null;
+
+            fetch('/users/' + userId + '/role', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ role: newRole })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const message = document.getElementById('message');
+                if (data.success) {
+                    message.textContent = '角色更新成功！';
+                    message.className = 'message success';
+                    // 更新原始值
+                    select.dataset.originalValue = select.value;
+                } else {
+                    message.textContent = '角色更新失败：' + (data.message || '未知错误');
+                    message.className = 'message error';
+                    // 恢复原来的值
+                    select.value = select.dataset.originalValue;
+                }
+            })
+            .catch(error => {
+                const message = document.getElementById('message');
+                message.textContent = '角色更新失败：网络错误';
+                message.className = 'message error';
+                select.value = select.dataset.originalValue;
+            });
+        }
+
+        function deleteUser(userId) {
+            if (confirm('确定要删除该用户吗？')) {
+                fetch('/users/' + userId, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        alert('删除失败');
+                    }
+                });
+            }
+        }
+
+        // 初始化时保存原始角色值
+        document.addEventListener('DOMContentLoaded', function() {
+            const roleSelects = document.querySelectorAll('.role-select');
+            roleSelects.forEach(select => {
+                select.dataset.originalValue = select.value;
+            });
+        });
+    </script>
+</body>
+</html>

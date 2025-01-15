@@ -17,10 +17,19 @@
             })
             .then(response => response.json())
             .then(data => {
+                const resultDiv = document.getElementById('uploadResult');
+                const successDiv = document.getElementById('successMessage');
+                const errorDiv = document.getElementById('errorMessage');
+                
+                resultDiv.style.display = 'block';
                 if(data.success) {
-                    alert('上传成功！');
+                    successDiv.textContent = data.message || '上传成功！';
+                    successDiv.style.display = 'block';
+                    errorDiv.style.display = 'none';
                 } else {
-                    alert('上传失败：' + data.message);
+                    errorDiv.textContent = data.message || '上传失败';
+                    errorDiv.style.display = 'block';
+                    successDiv.style.display = 'none';
                 }
             })
             .catch(error => {
@@ -31,27 +40,71 @@
     </script>
 </head>
 <body>
-    <header>
-        <div class="logo">微生物数据库</div>
-        <nav>
-            <ul>
-                <li><a href="/">首页</a></li>
-                <li><a href="/upload" class="active">数据上传</a></li>
-                <li><a href="/search">数据查询</a></li>
-                <li><a href="/browse">数据浏览</a></li>
-            </ul>
-        </nav>
-    </header>
+    <%- include('partials/header') %>
 
     <main class="main-container">
         <div class="container">
             <h1 class="page-title">微生物数据上传</h1>
-            <h2>导入Excel文件</h2>
-            <form onsubmit="handleUpload(event)">
-                <input type="file" name="excelFile" accept=".xlsx,.xls" required>
-                <button type="submit">上传并导入数据库</button>
-            </form>
+            <% if (user.role === 'guest') { %>
+                <div class="alert alert-warning">
+                    您当前是访客身份，没有上传权限。请<a href="/login">登录</a>或<a href="/register">注册</a>用户账号。
+                </div>
+            <% } else { %>
+                <h2>导入Excel文件</h2>
+                <form onsubmit="handleUpload(event)">
+                    <input type="file" name="excelFile" accept=".xlsx,.xls" required>
+                    <button type="submit">上传并导入数据库</button>
+                </form>
+                <div id="uploadResult" class="mt-3" style="display: none;">
+                    <div class="alert alert-success" id="successMessage" style="display: none;"></div>
+                    <div class="alert alert-danger" id="errorMessage" style="display: none;"></div>
+                </div>
+            <% } %>
         </div>
     </main>
+
+    <script>
+        function handleUpload(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            
+            // 显示加载状态
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '上传中...';
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('uploadResult');
+                const successDiv = document.getElementById('successMessage');
+                const errorDiv = document.getElementById('errorMessage');
+                
+                resultDiv.style.display = 'block';
+                if(data.success) {
+                    successDiv.textContent = data.message || '上传成功！';
+                    successDiv.style.display = 'block';
+                    errorDiv.style.display = 'none';
+                } else {
+                    errorDiv.textContent = data.message || '上传失败';
+                    errorDiv.style.display = 'block';
+                    successDiv.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.textContent = '上传过程中发生错误';
+                errorDiv.style.display = 'block';
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '上传并导入数据库';
+            });
+        }
+    </script>
 </body>
 </html>

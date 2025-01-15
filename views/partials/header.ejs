@@ -1,0 +1,14 @@
+<header>
+    <div class="logo">微生物数据库</div>
+    <nav>
+        <ul>
+            <li><a href="/" class="<%= currentPage === 'home' ? 'active' : '' %>">首页</a></li>
+            <li><a href="/upload" class="<%= currentPage === 'upload' ? 'active' : '' %>">数据上传</a></li>
+            <li><a href="/search" class="<%= currentPage === 'search' ? 'active' : '' %>">数据查询</a></li>
+            <li><a href="/browse" class="<%= currentPage === 'browse' ? 'active' : '' %>">数据浏览</a></li>
+            <% if (user && user.role === 'admin') { %>
+                <li style="margin-left: auto;"><a href="/user-management" class="<%= currentPage === 'user-management' ? 'active' : '' %> admin-only visible">用户管理</a></li>
+            <% } %>
+        </ul>
+    </nav>
+</header>

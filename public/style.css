@@ -177,6 +177,35 @@ th {
   border-radius: 4px;
 }
 
+.message {
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    display: block;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    position: relative;
+    animation: fadeIn 0.5s ease, fadeOut 1s ease 3s forwards;
+    visibility: visible;
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; visibility: hidden; }
+}
+
+.message.success {
+    color: #155724;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+}
+
+.message.error {
+    color: #dc3545;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+}
+
 .error,
 .error-message,
 .alert-danger {
@@ -224,6 +253,52 @@ th {
 
 .auth-container a:hover {
   text-decoration: underline;
+}
+
+/* User management styles */
+.user-management .table-container {
+  margin-top: 20px;
+}
+
+.user-management table {
+  width: 100%;
+}
+
+.user-management th {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.user-management .btn-edit,
+.user-management .btn-delete {
+  padding: 4px 8px;
+  margin: 0 4px;
+  font-size: 0.9rem;
+}
+
+.user-management .btn-edit {
+  background-color: #28a745;
+}
+
+.user-management .btn-edit:hover {
+  background-color: #218838;
+}
+
+.user-management .btn-delete {
+  background-color: #dc3545;
+}
+
+.user-management .btn-delete:hover {
+  background-color: #c82333;
+}
+
+/* Admin nav item */
+nav a.admin-only {
+  display: none;
+}
+
+nav a.admin-only.visible {
+  display: inline-block;
 }
 
 /* Two column layout */

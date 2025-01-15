@@ -30,12 +30,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// Session store
+const SQLiteStore = require('connect-sqlite3')(session);
+
 // Session configuration
 app.use(session({
+  store: new SQLiteStore({
+    db: 'sessions.db',
+    dir: __dirname + '/database',
+    concurrentDB: true
+  }),
   secret: 'your-secret-key',
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: false } // Set to true if using HTTPS
+  cookie: { 
+    secure: false, // Set to true if using HTTPS
+    maxAge: 1000 * 60 * 60 * 24 // 1 day
+  }
 }));
 
 // User database connection
@@ -45,6 +56,14 @@ const userDb = new sqlite3.Database('database/users.db');
 const requireAuth = (req, res, next) => {
   if (!req.session.user) {
     req.session.user = { username: 'anonymous', role: 'guest' };
+  }
+  next();
+};
+
+// Admin authorization middleware
+const requireAdmin = (req, res, next) => {
+  if (req.session.user.role !== 'admin') {
+    return res.status(403).send('无权访问');
   }
   next();
 };
@@ -123,7 +142,7 @@ app.post('/login', (req, res) => {
       return res.redirect('/?error=4');
     }
     
-    req.session.user = { username: user.username, role: user.username === 'admin' ? 'admin' : 'user' };
+    req.session.user = { username: user.username, role: user.role };
     console.log('登录成功：', user.username);
     res.redirect('/');
   });
@@ -164,12 +183,14 @@ app.post('/register', (req, res) => {
       
       // Encode password hash in base64 before storing
       const hashedPassword = Buffer.from(bcrypt.hashSync(password, 8)).toString('base64');
-      userDb.run('INSERT INTO users (username, password) VALUES (?, ?)', 
-        [username, hashedPassword], (err) => {
+      const createdAt = new Date().toISOString();
+      const defaultRole = 'guest';
+      userDb.run('INSERT INTO users (username, password, created_at, role) VALUES (?, ?, ?, ?)', 
+        [username, hashedPassword, createdAt, defaultRole], (err) => {
           if (err) {
             return res.redirect('/register?error=3');
           }
-          req.session.user = { username, role: 'user' };
+          req.session.user = { username, role: defaultRole };
           res.redirect('/');
         });
     });
@@ -185,17 +206,34 @@ app.get('/logout', (req, res) => {
 app.get('/', (req, res) => {
   res.render('home', { 
     user: req.session.user,
-    error: req.query.error 
+    error: req.query.error,
+    currentPage: 'home'
   });
 });
 
 // 数据上传路由
 app.get('/upload', (req, res) => {
-  res.render('upload');
+  res.render('upload', {
+    currentPage: 'upload',
+    user: req.session.user || { role: 'guest' }
+  });
 });
 
 // 处理文件上传
 app.post('/upload', upload.single('excelFile'), (req, res) => {
+  // 检查用户是否登录
+  if (!req.session.user) {
+    return res.status(401).json({ success: false, message: '请先登录' });
+  }
+
+  // 检查用户角色
+  const userRole = req.session.user.role;
+  
+  // 只有user和admin角色可以上传
+  if (!['user', 'admin'].includes(userRole)) {
+    return res.status(403).json({ success: false, message: '上传失败：guest用户没有上传权限' });
+  }
+
   if (!req.file) {
     return res.status(400).json({ success: false, message: '请选择要上传的文件' });
   }
@@ -234,7 +272,7 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
       });
 
       stmt.finalize();
-      res.json({ success: true });
+      res.json({ success: true, message: '上传成功' });
     });
   } catch (err) {
     console.error('文件处理错误:', err);
@@ -245,6 +283,7 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
 // 搜索路由
 app.get('/search', (req, res) => {
   const keyword = req.query.keyword || '';
+  res.locals.currentPage = 'search';
   
   if (keyword) {
       db.all(
@@ -262,11 +301,17 @@ app.get('/search', (req, res) => {
           console.error('搜索错误:', err);
           return res.status(500).send('搜索失败');
         }
-        res.render('search', { results: rows });
+        res.render('search', { 
+          results: rows,
+          user: req.session.user || { role: 'guest' }
+        });
       }
     );
   } else {
-    res.render('search', { results: null });
+    res.render('search', { 
+      results: null,
+      user: req.session.user || { role: 'guest' }
+    });
   }
 });
 
@@ -274,6 +319,7 @@ app.get('/search', (req, res) => {
 app.get('/browse', (req, res) => {
   const start = parseInt(req.query.start) || 1;
   const end = parseInt(req.query.end) || 10;
+  res.locals.currentPage = 'browse';
 
   db.all(
     `SELECT * FROM microorganisms 
@@ -288,10 +334,224 @@ app.get('/browse', (req, res) => {
       res.render('browse', { 
         results: rows,
         start: start,
-        end: end
+        end: end,
+        user: req.session.user || { role: 'guest' }
       });
     }
   );
+});
+
+// 用户管理路由
+app.get('/user-management', requireAdmin, (req, res) => {
+  userDb.all('SELECT * FROM users ORDER BY id ASC', (err, users) => {
+    if (err) {
+      console.error('获取用户列表失败:', err);
+      return res.status(500).send('获取用户列表失败');
+    }
+    res.render('user_management', {
+      users: users,
+      currentPage: 'user-management',
+      user: req.session.user
+    });
+  });
+});
+
+// 更新用户角色路由
+app.put('/users/:id/role', requireAdmin, async (req, res) => {
+  const userId = req.params.id;
+  const { role } = req.body;
+
+  // 验证角色
+  if (!['guest', 'user', 'admin'].includes(role)) {
+    return res.status(400).json({ success: false, message: '无效的角色' });
+  }
+
+  // 防止修改当前登录用户的角色
+  if (req.session.user.id === userId) {
+    return res.status(403).json({ success: false, message: '不能修改当前登录用户的角色' });
+  }
+
+    // Create promise-based versions of SQLite operations
+    const runQuery = (query, params) => {
+      return new Promise((resolve, reject) => {
+        userDb.run(query, params, function(err) {
+          if (err) return reject(err);
+          resolve(this);
+        });
+      });
+    };
+
+    const getQuery = (query, params) => {
+      return new Promise((resolve, reject) => {
+        userDb.get(query, params, (err, row) => {
+          if (err) return reject(err);
+          resolve(row);
+        });
+      });
+    };
+
+    try {
+      // Start transaction
+      await runQuery('BEGIN TRANSACTION');
+      
+      // Update user role with retry logic
+      const updateRole = async (attempt = 1) => {
+        try {
+          console.log(`尝试更新用户 ${userId} 角色为 ${role} (尝试 ${attempt})`);
+          const updateResult = await runQuery(
+            'UPDATE users SET role = ? WHERE id = ?', 
+            [role, userId]
+          );
+          
+          if (updateResult.changes === 0) {
+            await runQuery('ROLLBACK');
+            return res.status(404).json({ success: false, message: '用户不存在' });
+          }
+
+          // Verify update
+          const updatedUser = await getQuery(
+            'SELECT role FROM users WHERE id = ?', 
+            [userId]
+          );
+
+          if (!updatedUser || updatedUser.role !== role) {
+            throw new Error('角色更新验证失败');
+          }
+
+          return updatedUser;
+        } catch (err) {
+          if (err.code === 'SQLITE_BUSY' && attempt < maxRetries) {
+            const delay = Math.min(1000, retryDelay * Math.pow(2, attempt - 1));
+            console.log(`数据库锁定，重试 ${attempt}，等待 ${delay}ms`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return updateRole(attempt + 1);
+          }
+          throw err;
+        }
+      };
+
+      const updatedUser = await updateRole();
+      if (!updatedUser) {
+        await runQuery('ROLLBACK');
+        return res.status(500).json({ success: false, message: '角色更新失败' });
+      }
+
+      if (updatedUser.role === role) {
+        // Clear sessions
+        const sessionStore = req.sessionStore;
+        const maxRetries = 5;
+        const retryDelay = 500;
+
+        const clearSessions = async (attempt = 1) => {
+          try {
+            console.log(`开始清除用户 ${userId} 的session (尝试 ${attempt})`);
+            
+            // Get all sessions using the correct method
+            const sessions = await new Promise((resolve, reject) => {
+              sessionStore.length((err, count) => {
+                if (err) {
+                  if (err.code === 'SQLITE_BUSY' && attempt < maxRetries) {
+                    const delay = Math.min(1000, retryDelay * Math.pow(2, attempt - 1));
+                    console.log(`数据库锁定，重试 ${attempt}，等待 ${delay}ms`);
+                    setTimeout(() => clearSessions(attempt + 1), delay);
+                    return;
+                  }
+                  return reject(err);
+                }
+                
+                // Get all sessions sequentially
+                const getSessions = async () => {
+                  const sessions = [];
+                  for (let i = 0; i < count; i++) {
+                    const session = await new Promise((resolve, reject) => {
+                      sessionStore.get(i, (err, session) => {
+                        if (err) return reject(err);
+                        resolve(session);
+                      });
+                    });
+                    if (session) sessions.push(session);
+                  }
+                  return sessions;
+                };
+                
+                getSessions()
+                  .then(resolve)
+                  .catch(reject);
+              });
+            });
+
+            // Filter and destroy sessions for this user
+            for (const session of sessions) {
+              if (session.user && session.user.id === userId) {
+                await new Promise((resolve, reject) => {
+                  sessionStore.destroy(session.id, (err) => {
+                    if (err) {
+                      if (err.code === 'SQLITE_BUSY' && attempt < maxRetries) {
+                        const delay = Math.min(1000, retryDelay * Math.pow(2, attempt - 1));
+                        console.log(`数据库锁定，重试 ${attempt}，等待 ${delay}ms`);
+                        setTimeout(() => clearSessions(attempt + 1), delay);
+                        return;
+                      }
+                      return reject(err);
+                    }
+                    resolve();
+                  });
+                });
+              }
+            }
+
+            console.log(`成功清除用户 ${userId} 的session`);
+          } catch (err) {
+            console.error('清除session失败:', err);
+            throw err;
+          }
+        };
+
+        await clearSessions();
+        await runQuery('COMMIT');
+        console.log(`成功更新用户 ${userId} 角色为 ${role}`);
+        res.json({ 
+          success: true,
+          message: `角色已成功更新为${role}`
+        });
+      } else {
+        await runQuery('ROLLBACK');
+        res.status(500).json({
+          success: false,
+          message: '角色更新失败，请重试'
+        });
+      }
+    } catch (err) {
+      await runQuery('ROLLBACK');
+      console.error('角色更新过程中发生错误:', err);
+      res.status(500).json({
+        success: false,
+        message: '服务器内部错误'
+      });
+    }
+});
+
+// 删除用户路由
+app.delete('/users/:id', requireAdmin, (req, res) => {
+  const userId = req.params.id;
+  
+  // 防止删除当前登录用户
+  if (req.session.user.id === userId) {
+    return res.status(403).json({ success: false, message: '不能删除当前登录用户' });
+  }
+
+  userDb.run('DELETE FROM users WHERE id = ?', [userId], function(err) {
+    if (err) {
+      console.error('删除用户失败:', err);
+      return res.status(500).json({ success: false, message: '删除用户失败' });
+    }
+    
+    if (this.changes === 0) {
+      return res.status(404).json({ success: false, message: '用户不存在' });
+    }
+    
+    res.json({ success: true });
+  });
 });
 
 // 启动服务器
