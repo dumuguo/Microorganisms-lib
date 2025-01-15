@@ -79,7 +79,7 @@ app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 数据库初始化
-const db = new sqlite3.Database('microorganisms.db', (err) => {
+const db = new sqlite3.Database('database/microorganisms.db', (err) => {
   if (err) {
     console.error('数据库连接失败:', err.message);
   } else {
