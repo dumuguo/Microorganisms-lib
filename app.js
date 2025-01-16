@@ -7,6 +7,7 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const Recaptcha = require('express-recaptcha').RecaptchaV2;
 const upload = multer({ dest: 'uploads/' });
+const imageRoutes = require('./routes/images');
 
 const app = express();
 const port = 3002;
@@ -74,6 +75,10 @@ app.set('view engine', 'ejs');
 
 // 静态文件服务
 app.use(express.static(path.join(__dirname, 'public')));
+// 图片上传路由
+app.use(imageRoutes);
+// 图片静态文件服务
+app.use('/images', express.static(path.join(__dirname, 'database/images')));
 
 // 数据库初始化
 const db = new sqlite3.Database('database/microorganisms.db', (err) => {
@@ -294,8 +299,17 @@ app.get('/search', (req, res) => {
       `SELECT * FROM microorganisms 
        WHERE imau_id LIKE ? OR original_id LIKE ? OR latin_name LIKE ? 
        OR chinese_name LIKE ? OR isolation_location LIKE ? 
-       OR isolation_source LIKE ? OR genbank_id LIKE ?`,
+       OR isolation_source LIKE ? OR CAST(isolation_year AS TEXT) LIKE ?
+       OR medium_code LIKE ? OR culture_temperature LIKE ?
+       OR genbank_id LIKE ? OR preservation_form LIKE ?
+       OR storage_location LIKE ? OR backup_count LIKE ?
+       OR image_url LIKE ? OR upload_user LIKE ? 
+       OR strftime('%Y-%m-%d %H:%M:%S', upload_time) LIKE ?
+       OR strftime('%Y', upload_time) LIKE ?`,
       [
+        `%${keyword}%`, `%${keyword}%`, `%${keyword}%`,
+        `%${keyword}%`, `%${keyword}%`, `%${keyword}%`,
+        `%${keyword}%`, `%${keyword}%`, `%${keyword}%`,
         `%${keyword}%`, `%${keyword}%`, `%${keyword}%`,
         `%${keyword}%`, `%${keyword}%`, `%${keyword}%`,
         `%${keyword}%`

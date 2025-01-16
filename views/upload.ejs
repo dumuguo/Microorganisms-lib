@@ -21,49 +21,73 @@
                 <h2>导入Excel文件</h2>
                 <form onsubmit="handleUpload(event)">
                     <input type="file" name="excelFile" id="fileInput" accept=".xlsx,.xls" required>
-                    <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                            const fileInput = document.getElementById('fileInput');
-                            if (fileInput) {
-                                fileInput.addEventListener('click', function() {
-                                    console.log('File input clicked');
-                                    clearUploadMessages();
-                                });
-                                fileInput.addEventListener('change', function() {
-                                    console.log('File input changed');
-                                    clearUploadMessages();
-                                });
-                                console.log('Event listeners added successfully');
-                            } else {
-                                console.error('File input element not found');
-                            }
-                        });
-                    </script>
                     <button type="submit">上传并导入数据库</button>
                 </form>
+
+                <h2>上传微生物图片</h2>
+                <form id="imageUploadForm" onsubmit="handleImageUpload(event)">
+                    <input type="file" name="imageFile" id="imageInput" accept="image/*" required>
+                    <button type="submit">上传图片</button>
+                </form>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const fileInput = document.getElementById('fileInput');
+                        if (fileInput) {
+                            fileInput.addEventListener('click', function() {
+                                console.log('File input clicked');
+                                clearUploadMessages();
+                            });
+                            fileInput.addEventListener('change', function() {
+                                console.log('File input changed');
+                                clearUploadMessages();
+                            });
+                            console.log('Event listeners added successfully');
+                        } else {
+                            console.error('File input element not found');
+                        }
+                    });
+                </script>
                 <script>
                     function clearUploadMessages() {
                         console.log('Clearing upload messages...');
-                        const resultDiv = document.getElementById('uploadResult');
-                        const successDiv = document.getElementById('successMessage');
-                        const errorDiv = document.getElementById('errorMessage');
                         
-                        if (!resultDiv || !successDiv || !errorDiv) {
-                            console.error('Failed to find message elements');
-                            return;
+                        // Clear Excel messages
+                        const excelResult = document.getElementById('excelUploadResult');
+                        const excelSuccess = document.getElementById('excelSuccessMessage');
+                        const excelError = document.getElementById('excelErrorMessage');
+                        
+                        if (excelResult && excelSuccess && excelError) {
+                            excelResult.style.display = 'none';
+                            excelSuccess.style.display = 'none';
+                            excelError.style.display = 'none';
+                            excelSuccess.textContent = '';
+                            excelError.textContent = '';
                         }
                         
-                        console.log('Hiding elements and clearing text');
-                        resultDiv.style.display = 'none';
-                        successDiv.style.display = 'none';
-                        errorDiv.style.display = 'none';
-                        successDiv.textContent = '';
-                        errorDiv.textContent = '';
+                        // Clear Image messages
+                        const imageResult = document.getElementById('imageUploadResult');
+                        const imageSuccess = document.getElementById('imageSuccessMessage');
+                        const imageError = document.getElementById('imageErrorMessage');
+                        
+                        if (imageResult && imageSuccess && imageError) {
+                            imageResult.style.display = 'none';
+                            imageSuccess.style.display = 'none';
+                            imageError.style.display = 'none';
+                            imageSuccess.textContent = '';
+                            imageError.textContent = '';
+                        }
                     }
                 </script>
-                <div id="uploadResult" class="mt-3" style="display: none;">
-                    <div class="alert alert-success" id="successMessage" style="display: none;"></div>
-                    <div class="alert alert-danger" id="errorMessage" style="display: none;"></div>
+                <!-- Excel 上传结果 -->
+                <div id="excelUploadResult" class="mt-3" style="display: none;">
+                    <div class="alert alert-success" id="excelSuccessMessage" style="display: none;"></div>
+                    <div class="alert alert-danger" id="excelErrorMessage" style="display: none;"></div>
+                </div>
+
+                <!-- 图片上传结果 -->
+                <div id="imageUploadResult" class="mt-3" style="display: none;">
+                    <div class="alert alert-success" id="imageSuccessMessage" style="display: none;"></div>
+                    <div class="alert alert-danger" id="imageErrorMessage" style="display: none;"></div>
                 </div>
             <% } %>
         </div>
@@ -85,24 +109,24 @@
             })
             .then(response => response.json())
             .then(data => {
-                const resultDiv = document.getElementById('uploadResult');
-                const successDiv = document.getElementById('successMessage');
-                const errorDiv = document.getElementById('errorMessage');
+                const resultDiv = document.getElementById('excelUploadResult');
+                const successDiv = document.getElementById('excelSuccessMessage');
+                const errorDiv = document.getElementById('excelErrorMessage');
                 
                 if(data.success) {
                     resultDiv.style.display = 'block';
-                    successDiv.textContent = (data.message || '上传成功！') + `，本次上传 ${data.count || 0} 条数据`;
+                    successDiv.textContent = (data.message || 'Excel上传成功！') + `，本次上传 ${data.count || 0} 条数据`;
                     successDiv.style.display = 'block';
                     errorDiv.style.display = 'none';
-                    errorDiv.textContent = '';  // 清空错误信息
-                    errorDiv.classList.remove('alert-danger'); // 移除错误样式
+                    errorDiv.textContent = '';
+                    errorDiv.classList.remove('alert-danger');
                 } else {
                     resultDiv.style.display = 'block';
-                    errorDiv.textContent = data.message || '上传失败';
+                    errorDiv.textContent = data.message || 'Excel上传失败';
                     errorDiv.style.display = 'block';
-                    errorDiv.classList.add('alert-danger'); // 添加错误样式
+                    errorDiv.classList.add('alert-danger');
                     successDiv.style.display = 'none';
-                    successDiv.textContent = '';  // 清空成功信息
+                    successDiv.textContent = '';
                 }
             })
             .catch(error => {
@@ -114,6 +138,57 @@
             .finally(() => {
                 submitBtn.disabled = false;
                 submitBtn.textContent = '上传并导入数据库';
+            });
+        }
+        function handleImageUpload(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = '上传中...';
+
+            fetch('/upload/image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('imageUploadResult');
+                const successDiv = document.getElementById('imageSuccessMessage');
+                const errorDiv = document.getElementById('imageErrorMessage');
+                
+                if(data.success) {
+                    resultDiv.style.display = 'block';
+                    successDiv.innerHTML = `图片上传成功！<br>图片链接：<a href="${data.imageUrl}" target="_blank">${data.imageUrl}</a>`;
+                    successDiv.style.display = 'block';
+                    errorDiv.style.display = 'none';
+                    errorDiv.textContent = '';
+                    errorDiv.classList.remove('alert-danger');
+                } else {
+                    resultDiv.style.display = 'block';
+                    errorDiv.textContent = data.message || '图片上传失败';
+                    errorDiv.style.display = 'block';
+                    errorDiv.classList.add('alert-danger');
+                    successDiv.style.display = 'none';
+                    successDiv.textContent = '';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const errorDiv = document.getElementById('imageErrorMessage');
+                if (errorDiv) {
+                    errorDiv.textContent = '图片上传过程中发生错误';
+                    errorDiv.style.display = 'block';
+                    const resultDiv = document.getElementById('imageUploadResult');
+                    if (resultDiv) {
+                        resultDiv.style.display = 'block';
+                    }
+                }
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '上传图片';
             });
         }
     </script>
