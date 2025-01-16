@@ -61,7 +61,13 @@
                                     <td><%= item.preservation_form %></td>
                                     <td><%= item.storage_location %></td>
                                     <td><%= item.backup_count %></td>
-                                    <td><%= item.image_url %></td>
+                                    <td>
+                                        <% if (item.image_url) { %>
+                                            <a href="<%= item.image_url %>" target="_blank">查看图片</a>
+                                        <% } else { %>
+                                            无图片
+                                        <% } %>
+                                    </td>
                                     <td><%= item.upload_user %></td>
                                     <td><%= item.upload_time %></td>
                                 </tr>

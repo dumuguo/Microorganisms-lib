@@ -273,7 +273,7 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
           row['保藏备份数'] || '',
           row['图片链接'] || '',
           req.session.user.username, // Always use logged-in user
-          new Date().toISOString() // Always use current timestamp
+          new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString() // Use Beijing time (UTC+8)
         );
       });
 

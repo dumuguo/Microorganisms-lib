@@ -26,7 +26,14 @@
 
                 <h2>上传微生物图片</h2>
                 <form id="imageUploadForm" onsubmit="handleImageUpload(event)">
-                    <input type="file" name="imageFile" id="imageInput" accept="image/*" required>
+                    <div class="form-group">
+                        <label for="imageInput">选择图片文件</label>
+                        <input type="file" name="imageFile" id="imageInput" accept="image/*" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="microbeId">请输入ID号</label>
+                        <input type="number" name="microbeId" id="microbeId" required min="1" step="1" placeholder="请输入有效的ID号">
+                    </div>
                     <button type="submit">上传图片</button>
                 </form>
                 <script>
@@ -143,6 +150,13 @@
         function handleImageUpload(event) {
             event.preventDefault();
             const formData = new FormData(event.target);
+            const microbeId = document.getElementById('microbeId').value;
+            
+            if (!microbeId || isNaN(microbeId) || microbeId < 1) {
+                alert('请输入有效的ID号');
+                return;
+            }
+            
             const submitBtn = event.target.querySelector('button[type="submit"]');
             
             submitBtn.disabled = true;

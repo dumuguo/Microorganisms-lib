@@ -3,6 +3,14 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const sqlite3 = require('sqlite3').verbose();
+const db = new sqlite3.Database(path.join(__dirname, '../database/microorganisms.db'), (err) => {
+    if (err) {
+        console.error('数据库连接错误:', err);
+    } else {
+        console.log('成功连接到数据库');
+    }
+});
 
 // 创建图片存储目录
 const imageDir = path.join(__dirname, '../database/images');
@@ -42,11 +50,36 @@ router.post('/upload/image', upload.single('imageFile'), (req, res) => {
             return res.status(400).json({ success: false, message: '请选择要上传的图片' });
         }
 
-        const imageUrl = `/images/${req.file.filename}`;
-        res.json({ 
-            success: true,
-            imageUrl: imageUrl,
-            message: '图片上传成功'
+        const microbeId = req.body.microbeId;
+        if (!microbeId || isNaN(microbeId) || microbeId < 1) {
+            return res.status(400).json({ success: false, message: '请输入有效的ID号' });
+        }
+
+        const imageUrl = `http://localhost:3002/images/${req.file.filename}`;
+        
+        // 更新数据库
+        const sql = `UPDATE microorganisms SET image_url = ? WHERE id = ?`;
+        db.run(sql, [imageUrl, microbeId], function(err) {
+            if (err) {
+                console.error('数据库更新错误:', err);
+                return res.status(500).json({ 
+                    success: false,
+                    message: '数据库更新失败'
+                });
+            }
+
+            if (this.changes === 0) {
+                return res.status(404).json({ 
+                    success: false,
+                    message: '未找到对应的微生物记录'
+                });
+            }
+
+            res.json({ 
+                success: true,
+                imageUrl: imageUrl,
+                message: '图片上传成功并已更新数据库'
+            });
         });
     } catch (error) {
         console.error('图片上传错误:', error);
