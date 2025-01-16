@@ -6,41 +6,6 @@
     <title>微生物数据库 - 数据上传</title>
     <link rel="stylesheet" href="/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
-    <script>
-        function handleUpload(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            
-            fetch('/upload', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const resultDiv = document.getElementById('uploadResult');
-                const successDiv = document.getElementById('successMessage');
-                const errorDiv = document.getElementById('errorMessage');
-                
-                resultDiv.style.display = 'block';
-                if(data.success) {
-                    successDiv.textContent = (data.message || '上传成功！') + `，本次上传 ${data.count || 0} 条数据`;
-                    successDiv.style.display = 'block';
-                    errorDiv.style.display = 'none';
-                } else {
-                    errorDiv.textContent = data.message || '上传失败';
-                    errorDiv.style.display = 'block';
-                    successDiv.style.display = 'none';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('上传过程中发生错误');
-            });
-        }
-    </script>
 </head>
 <body>
     <%- include('partials/header') %>
@@ -124,15 +89,20 @@
                 const successDiv = document.getElementById('successMessage');
                 const errorDiv = document.getElementById('errorMessage');
                 
-                resultDiv.style.display = 'block';
                 if(data.success) {
+                    resultDiv.style.display = 'block';
                     successDiv.textContent = (data.message || '上传成功！') + `，本次上传 ${data.count || 0} 条数据`;
                     successDiv.style.display = 'block';
                     errorDiv.style.display = 'none';
+                    errorDiv.textContent = '';  // 清空错误信息
+                    errorDiv.classList.remove('alert-danger'); // 移除错误样式
                 } else {
+                    resultDiv.style.display = 'block';
                     errorDiv.textContent = data.message || '上传失败';
                     errorDiv.style.display = 'block';
+                    errorDiv.classList.add('alert-danger'); // 添加错误样式
                     successDiv.style.display = 'none';
+                    successDiv.textContent = '';  // 清空成功信息
                 }
             })
             .catch(error => {
