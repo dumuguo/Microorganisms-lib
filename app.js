@@ -5,15 +5,11 @@ const sqlite3 = require('sqlite3').verbose();
 const multer = require('multer');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
-const Recaptcha = require('express-recaptcha').RecaptchaV2;
 const upload = multer({ dest: 'uploads/' });
 const imageRoutes = require('./routes/images');
 
 const app = express();
 const port = 3002;
-
-// reCAPTCHA 配置
-const recaptcha = new Recaptcha('6LfZ9rYqAAAAAKNgVv4u8CbtJUbfT5_F1CdoT8-u', '6LfZ9rYqAAAAAHE0aex_t9AgK25-XDCgD0JVg3zY');
 
 // 确保body解析中间件最先加载
 app.use((req, res, next) => {
@@ -147,7 +143,6 @@ app.post('/login', (req, res) => {
 // 注册页面
 app.get('/register', (req, res) => {
   res.render('register', {
-    captcha: recaptcha.render(),
     error: req.query.error
   });
 });
@@ -161,35 +156,28 @@ app.post('/register', (req, res) => {
     return res.redirect('/register?error=4');
   }
 
-  // 验证 reCAPTCHA
-  recaptcha.verify(req, (error, data) => {
-    if (error) {
-      return res.redirect('/register?error=5');
-    }
+  // 检查用户名和密码
+  if (!username || !password) {
+    return res.redirect('/register?error=1');
+  }
 
-    // 检查用户名和密码
-    if (!username || !password) {
-      return res.redirect('/register?error=1');
+  userDb.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
+    if (user) {
+      return res.redirect('/register?error=2');
     }
-
-    userDb.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
-      if (user) {
-        return res.redirect('/register?error=2');
-      }
-      
-      // Encode password hash in base64 before storing
-      const hashedPassword = Buffer.from(bcrypt.hashSync(password, 8)).toString('base64');
-      const createdAt = new Date().toISOString();
-      const defaultRole = 'guest';
-      userDb.run('INSERT INTO users (username, password, created_at, role) VALUES (?, ?, ?, ?)', 
-        [username, hashedPassword, createdAt, defaultRole], (err) => {
-          if (err) {
-            return res.redirect('/register?error=3');
-          }
-          req.session.user = { username, role: defaultRole };
-          res.redirect('/');
-        });
-    });
+    
+    // Encode password hash in base64 before storing
+    const hashedPassword = Buffer.from(bcrypt.hashSync(password, 8)).toString('base64');
+    const createdAt = new Date().toISOString();
+    const defaultRole = 'guest';
+    userDb.run('INSERT INTO users (username, password, created_at, role) VALUES (?, ?, ?, ?)', 
+      [username, hashedPassword, createdAt, defaultRole], (err) => {
+        if (err) {
+          return res.redirect('/register?error=3');
+        }
+        req.session.user = { username, role: defaultRole };
+        res.redirect('/');
+      });
   });
 });
 

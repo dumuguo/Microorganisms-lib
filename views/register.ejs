@@ -22,9 +22,6 @@
     <label for="confirm_password">确认密码</label>
     <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
   </div>
-  <div class="form-group">
-    <%- captcha %>
-  </div>
   <% if (typeof error !== 'undefined') { %>
     <div class="alert alert-danger">
       <% if (error == 1) { %>
@@ -35,8 +32,6 @@
         用户已存在
       <% } else if (error == 4) { %>
         密码不一致
-      <% } else if (error == 5) { %>
-        验证码错误
       <% } %>
     </div>
   <% } %>
