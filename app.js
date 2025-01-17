@@ -229,49 +229,60 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
     
     // 添加调试信息
 
-    db.serialize(() => {
-      const stmt = db.prepare(`
-        INSERT INTO microorganisms (
-          imau_id, original_id, latin_name, chinese_name,
-          isolation_location, isolation_source, isolation_year,
-          medium_code, culture_temperature, genbank_id,
-          preservation_form, storage_location, backup_count,
-          image_url, upload_user, upload_time
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      
-      data.forEach(row => {
-        // Remove any existing upload_user and upload_time from Excel data
-        delete row['上传用户'];
-        delete row['上传时间'];
-        
-        stmt.run(
-          row['IMAU编号'] || '',
-          row['原始编号'] || '',
-          row['拉丁文种属名'] || '',
-          row['中文种属名'] || '',
-          row['分离地'] || '',
-          row['分离源'] || '',
-          row['分离时间'] || 0,
-          row['培养基代码'] || '',
-          row['培养温度'] || '',
-          row['GenBank序列号：'] || '',
-          row['菌株保藏形式'] || '',
-          row['存放位置'] || '',
-          row['保藏备份数'] || '',
-          row['图片链接'] || '',
-          req.session.user.username, // Always use logged-in user
-          new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString() // Use Beijing time (UTC+8)
-        );
-      });
+      db.serialize(() => {
+        // Get current row count to determine starting ID
+        db.get('SELECT COUNT(*) as count FROM microorganisms', (err, result) => {
+          if (err) {
+            return res.status(500).json({ success: false, message: '无法获取当前记录数' });
+          }
+          
+          const startId = result.count + 1;
+          let currentId = startId;
+          
+          const stmt = db.prepare(`
+            INSERT INTO microorganisms (
+              id, imau_id, original_id, latin_name, chinese_name,
+              isolation_location, isolation_source, isolation_year,
+              medium_code, culture_temperature, genbank_id,
+              preservation_form, storage_location, backup_count,
+              image_url, upload_user, upload_time
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          
+          data.forEach(row => {
+            // Remove any existing upload_user and upload_time from Excel data
+            delete row['上传用户'];
+            delete row['上传时间'];
+            
+            stmt.run(
+              currentId++,
+              row['IMAU编号'] || '',
+              row['原始编号'] || '',
+              row['拉丁文种属名'] || '',
+              row['中文种属名'] || '',
+              row['分离地'] || '',
+              row['分离源'] || '',
+              row['分离时间'] || 0,
+              row['培养基代码'] || '',
+              row['培养温度'] || '',
+              row['GenBank序列号：'] || '',
+              row['菌株保藏形式'] || '',
+              row['存放位置'] || '',
+              row['保藏备份数'] || '',
+              row['图片链接'] || '',
+              req.session.user.username, // Always use logged-in user
+              new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString() // Use Beijing time (UTC+8)
+            );
+          });
 
-      stmt.finalize();
-      res.json({ 
-        success: true, 
-        message: `上传成功，共上传了${data.length}条记录（一行代表一条记录）`,
-        count: data.length 
+          stmt.finalize();
+          res.json({ 
+            success: true, 
+            message: `上传成功，共上传了${data.length}条记录（一行代表一条记录）`,
+            count: data.length 
+          });
+        });
       });
-    });
   } catch (err) {
     res.status(500).json({ success: false, message: '文件处理失败' });
   }
@@ -322,27 +333,75 @@ app.get('/search', (req, res) => {
 
 // 浏览路由
 app.get('/browse', (req, res) => {
-  const start = parseInt(req.query.start) || 1;
-  const end = parseInt(req.query.end) || 10;
+  const start = parseInt(req.query.start);
+  const end = parseInt(req.query.end);
   res.locals.currentPage = 'browse';
 
-  db.all(
-    `SELECT * FROM microorganisms 
-     WHERE id BETWEEN ? AND ? 
-     ORDER BY id ASC`,
-    [start, end],
-    (err, rows) => {
+  // 如果提供了记录号范围
+  if (start && end) {
+    // 验证范围
+    if (start < 1 || end < 1 || start > end) {
+      return res.status(400).send('无效的记录号范围');
+    }
+
+    db.all(
+      `SELECT * FROM microorganisms 
+       WHERE id BETWEEN ? AND ?
+       ORDER BY id ASC`,
+      [start, end],
+      (err, rows) => {
+        if (err) {
+          return res.status(500).send('查询失败');
+        }
+
+        res.render('browse', {
+          results: rows,
+          start: start,
+          end: end,
+          user: req.session.user || { role: 'guest' }
+        });
+      }
+    );
+  } else {
+    // 默认分页浏览
+    const page = parseInt(req.query.page) || 1;
+    const perPage = 10;
+    const offset = (page - 1) * perPage;
+
+    // Get total count
+    db.get('SELECT COUNT(*) as total FROM microorganisms', (err, countResult) => {
       if (err) {
         return res.status(500).send('查询失败');
       }
-      res.render('browse', { 
-        results: rows,
-        start: start,
-        end: end,
-        user: req.session.user || { role: 'guest' }
-      });
-    }
-  );
+
+      // Get current page data
+      db.all(
+        `SELECT * FROM microorganisms 
+         ORDER BY id ASC
+         LIMIT ? OFFSET ?`,
+        [perPage, offset],
+        (err, rows) => {
+          if (err) {
+            return res.status(500).send('查询失败');
+          }
+
+          const totalPages = Math.ceil(countResult.total / perPage);
+          
+          const start = offset + 1;
+          const end = Math.min(offset + perPage, countResult.total);
+          
+          res.render('browse', { 
+            results: rows,
+            currentPage: page,
+            totalPages: totalPages,
+            start: start,
+            end: end,
+            user: req.session.user || { role: 'guest' }
+          });
+        }
+      );
+    });
+  }
 });
 
 // 用户管理路由
@@ -549,4 +608,5 @@ app.delete('/users/:id', requireAdmin, (req, res) => {
 
 // 启动服务器
 app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
 });
