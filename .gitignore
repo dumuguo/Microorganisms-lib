@@ -1,2 +1,6 @@
 # Local Netlify folder
 .netlify
+database/images
+node_modules/
+.DS_Store
+uploads/
